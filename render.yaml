@@ -1,0 +1,13 @@
+# Render 的部署設定：在 Render 選 New → Blueprint，指向這個 GitHub 專案就會照這裡建好。
+services:
+  - type: web
+    name: nerf-miner
+    runtime: node
+    plan: free
+    buildCommand: "true"
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

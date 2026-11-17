@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nerf Miner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="view"></canvas>
+
+  <!-- ===== 對局中的介面 ===== -->
+  <div id="hud" class="hidden">
+    <header id="topbar">
+      <div class="stat" title="目前的錢">💰 <b id="money">0</b></div>
+      <div class="stat" title="剩餘時間">⏱ <b id="timer">5:00</b></div>
+      <div class="stat" id="vision" title="火把與家照亮的格數，時間到時比這個"></div>
+      <div class="stat" id="bomb" title="炸彈的狀態"></div>
+      <div class="stat hidden" id="netstat" title="連線延遲（你 / 對手）"></div>
+      <div class="spacer"></div>
+      <div id="versus"></div>
+      <div class="spacer"></div>
+      <div id="emotes">
+        <button data-emote="smile" title="表情">😀</button>
+        <button data-emote="angry" title="表情">😡</button>
+        <button data-emote="cry" title="表情">😭</button>
+        <button data-emote="good" title="表情">👍</button>
+      </div>
+      <button id="btn-taunt" title="惡搞：問對方要不要投降">🏳️ 要不要投降？</button>
+      <button id="btn-map" title="切換大地圖（M）">🗺️ 大地圖</button>
+      <button class="snd-sfx" title="音效開關">🔊</button>
+      <button class="snd-music" title="音樂開關">🎵</button>
+      <button id="btn-help" title="操作說明">❓</button>
+      <button id="btn-giveup" class="danger" title="認輸並結束這一局">投降</button>
+    </header>
+
+    <aside id="shop">
+      <div id="stockbox">
+        <h2>家裡的庫存</h2>
+        <div id="stock"></div>
+        <p class="hint">先選一名礦工，再點庫存裡的道具，礦工就會回家拿。</p>
+      </div>
+      <h2>商店</h2>
+      <div id="items"></div>
+      <div id="desc">把滑鼠移到道具上看說明。</div>
+    </aside>
+
+    <section id="miners"></section>
+    <canvas id="mini" title="小地圖：點一下把鏡頭移過去"></canvas>
+    <div id="hint" class="hidden"></div>
+    <div id="banner"></div>
+    <div id="log"></div>
+    <div id="tip"></div>
+    <div id="bub-me" class="bubble"></div>
+    <div id="bub-foe" class="bubble"></div>
+    <div id="netwarn" class="hidden"></div>
+
+    <div id="taunt" class="modal hidden">
+      <p>對手問你：<b>要不要投降？</b></p>
+      <div class="row">
+        <button id="taunt-no">才不要！</button>
+        <button id="taunt-yes" class="danger">投降</button>
+      </div>
+    </div>
+
+    <div id="help" class="modal hidden">
+      <h2>操作說明</h2>
+      <ul>
+        <li><b>選礦工</b>：點地圖上的礦工、下方的卡片，或按 <kbd>1</kbd>–<kbd>5</kbd>、<kbd>Tab</kbd>。按住 <kbd>Shift</kbd> 再點可以多選，<kbd>F</kbd> 全選。</li>
+        <li><b>指派任務</b>：選好礦工後點地圖任何一格（或按右鍵），礦工會自己找路、挖過去並插火把。按住 <kbd>Shift</kbd> 點是<b>排隊</b>：做完目前的再去下一個點。</li>
+        <li><b>自動探索</b>：按 <kbd>G</kbd>（或卡片上的「自動」），礦工沒事做的時候會自己找地方挖。按 <kbd>Q</kbd> 跳到下一個閒著的礦工。</li>
+        <li><b>拿道具</b>：在商店買，再點「家裡的庫存」裡的道具，選取中的礦工會回家拿。對商店裡的道具按<b>右鍵</b> = 買了順便去拿。</li>
+        <li><b>用道具</b>：按 <kbd>E</kbd> 進入瞄準，地圖上會標出作用範圍；點一下選位置，礦工會走過去自動使用。再按一次 <kbd>E</kbd> 是在原地使用，<kbd>Esc</kbd> 取消。炸彈不用按，走進敵方的家就會爆。</li>
+        <li><b>其他按鍵</b>：<kbd>U</kbd> 升級、<kbd>H</kbd> 回家、<kbd>X</kbd> 停下、<kbd>B</kbd> 回家拿炸彈、<kbd>空白鍵</kbd> 鏡頭回到礦工、<kbd>M</kbd> 大地圖。</li>
+        <li><b>移動鏡頭</b>：拖曳地圖，或用 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 方向鍵；滾輪縮放；點左上角的小地圖可以直接跳過去。</li>
+      </ul>
+      <div class="row"><button id="help-close">知道了</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 主選單 ===== -->
+  <div id="menu" class="screen">
+    <div class="panel">
+      <h1 class="logo"><span class="pick">⛏️</span>NERF MINER</h1>
+      <p class="tag">五分鐘一局的地下挖礦對戰</p>
+      <div class="menu-btns">
+        <button class="big primary" id="go-versus">⚔️ 雙人對戰</button>
+        <button class="big" id="go-solo">🤖 單人對電腦</button>
+        <button class="big" id="go-howto">📖 怎麼玩</button>
+      </div>
+      <div class="acct" id="acct"></div>
+      <div class="foot">
+        <button class="snd-sfx" title="音效開關">🔊</button>
+        <button class="snd-music" title="音樂開關">🎵</button>
+        <span id="ver"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 單人：選角色與難度 ===== -->
+  <div id="solo" class="screen hidden">
+    <div class="panel wide">
+      <h2 class="title">單人對電腦</h2>
+      <p class="tag">選一個角色</p>
+      <div class="chars" id="solo-chars"></div>
+      <p class="tag">選擇電腦對手的難度就開始</p>
+      <div class="row">
+        <button class="big" data-level="easy">簡單</button>
+        <button class="big primary" data-level="normal">普通</button>
+        <button class="big" data-level="hard">困難</button>
+      </div>
+      <div class="row back"><button data-back>← 回主選單</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 雙人：大廳 ===== -->
+  <div id="lobby" class="screen hidden">
+    <div class="panel wide">
+      <h2 class="title">雙人對戰</h2>
+      <p class="tag" id="lobby-status">連線中…</p>
+      <div class="acct" id="lobby-acct"></div>
+      <div class="lobby-grid">
+        <div class="box">
+          <h3>開一間房間</h3>
+          <p class="small">建立房間後把房號或連結給朋友。</p>
+          <button class="big primary" id="btn-create" disabled>建立房間</button>
+          <h3>快速配對</h3>
+          <p class="small">和任何正在等人的玩家湊一桌。</p>
+          <button class="big" id="btn-quick" disabled>快速配對</button>
+        </div>
+        <div class="box">
+          <h3>加入朋友的房間</h3>
+          <p class="small">輸入朋友給你的 4 位數房號。</p>
+          <div class="row">
+            <input id="join-code" inputmode="numeric" maxlength="4" placeholder="房號" autocomplete="off">
+            <button class="big" id="btn-join" disabled>加入</button>
+          </div>
+          <h3>排行榜</h3>
+          <ol id="top"><li class="small">還沒有戰績。</li></ol>
+        </div>
+      </div>
+      <div class="row back"><button data-back>← 回主選單</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 雙人：房間 ===== -->
+  <div id="room" class="screen hidden">
+    <div class="panel wide">
+      <h2 class="title">房間 <span id="room-code"></span></h2>
+      <p class="tag" id="room-hint"></p>
+      <div class="invite" id="invite"></div>
+      <div class="players" id="players"></div>
+      <p class="tag">選一個角色</p>
+      <div class="chars" id="room-chars"></div>
+      <div class="row">
+        <button class="big primary" id="btn-ready">準備好了</button>
+        <button class="big" id="btn-leave">離開房間</button>
+      </div>
+      <div id="countdown" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- ===== 怎麼玩 ===== -->
+  <div id="howto" class="screen hidden">
+    <div class="panel wide">
+      <h2 class="title">怎麼玩</h2>
+      <ul class="rules">
+        <li>選一名礦工，再點地圖任何一格，他會自己挖路過去並插火把。</li>
+        <li>火把和家照亮的範圍就是你的<b>視野</b>；時間到時，視野大的一方獲勝。</li>
+        <li>把家裡的<b>炸彈</b>送進敵方的家就直接獲勝——先靠探路或買情報找出敵方的家。</li>
+        <li>三座中立<b>礦井</b>的位置開局就標在地圖上，站上去 3 秒可以佔領，礦井會一直生錢；挖到金礦也有錢。對手自帶的礦井要親眼看到才知道在哪。</li>
+        <li>地圖中間的<b>大寶藏</b>站 8 秒可以搶下：拿到 $80，並在自己這一側多一個假的家。</li>
+        <li>對手也會來炸你：留人守家，或在家門口放激光塔和尖刺。假的家可以騙掉對方的炸彈。</li>
+        <li>相鄰的敵對礦工會自動互打；被打倒的礦工要在家裡等 12 秒才復活。</li>
+        <li>4:00 會公告雙方的視野佔比，5:00 結算。</li>
+        <li>操作小技巧：按 <kbd>G</kbd> 讓礦工自動探索；按住 <kbd>Shift</kbd> 可以多選礦工或把任務排隊；用道具時按 <kbd>E</kbd> 再點地圖選位置。完整說明在對局中按 ❓。</li>
+      </ul>
+      <div class="row back"><button data-back>← 回主選單</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 登入 / 註冊 ===== -->
+  <div id="auth" class="screen hidden">
+    <form class="panel" id="auth-form" autocomplete="off">
+      <h2 class="title">帳號</h2>
+      <p class="tag">登入後會記錄勝敗。不登入也可以用訪客身分玩。</p>
+      <input id="auth-name" maxlength="12" placeholder="名字（2–12 個字）" autocomplete="username">
+      <input id="auth-pass" type="password" maxlength="64" placeholder="密碼（至少 6 個字）" autocomplete="current-password">
+      <p class="small">密碼在伺服器上只存加密後的結果。區域網路連線本身沒有加密，請不要用你在別的網站用的密碼。</p>
+      <p class="err" id="auth-err"></p>
+      <div class="row">
+        <button type="submit" class="big primary" id="auth-login">登入</button>
+        <button type="button" class="big" id="auth-register">註冊新帳號</button>
+      </div>
+      <div class="row back"><button type="button" id="auth-cancel">取消</button></div>
+    </form>
+  </div>
+
+  <!-- ===== 結算 ===== -->
+  <div id="over" class="screen hidden">
+    <div class="panel">
+      <h1 id="over-title"></h1>
+      <p class="tag" id="over-reason"></p>
+      <table id="over-stats"></table>
+      <p class="tag" id="over-status"></p>
+      <div class="row">
+        <button class="big primary" id="again">再來一局</button>
+        <button class="big" id="to-menu">回主選單</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <div id="fatal" class="hidden" title="點一下關閉"></div>
+  <script>
+    // 遊戲程式沒載入或執行出錯時，把原因直接顯示在畫面上，不然按鈕只會「點了沒反應」。
+    (function () {
+      var box = document.getElementById('fatal');
+      box.addEventListener('click', function () { box.classList.add('hidden'); });
+      window.addEventListener('error', function (e) {
+        if (!e.message) return;
+        var where = e.filename ? '（' + e.filename.split('/').pop() + ':' + e.lineno + '）' : '';
+        box.textContent = '遊戲發生錯誤：' + e.message + where;
+        box.classList.remove('hidden');
+      });
+      window.addEventListener('load', function () {
+        if (window.__nm) return;
+        var btns = document.querySelectorAll('#menu button');
+        for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+        box.innerHTML = location.protocol === 'file:'
+          ? '<b>遊戲還沒啟動。</b>直接打開 index.html 沒辦法玩，請關掉這個分頁，改成雙擊資料夾裡的 <b>start.bat</b>。'
+          : '<b>遊戲程式沒有載入成功。</b>請按 F5 重新整理；還是不行的話，按 F12 把 Console 裡的紅字回報出來。';
+        box.classList.remove('hidden');
+      });
+    })();
+  </script>
+  <script type="module" src="src/client/main.js"></script>
+</body>
+</html>

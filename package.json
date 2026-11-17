@@ -1,0 +1,14 @@
+{
+  "name": "nerf-miner",
+  "version": "0.4.2",
+  "private": true,
+  "type": "module",
+  "description": "Nerf Miner：五分鐘一局的地下挖礦對戰遊戲",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}
